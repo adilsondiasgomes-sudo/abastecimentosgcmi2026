@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerenciamento de Abastecimento · Guarda Municipal de Ipatinga</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ── Botão tela cheia ── */
+    .topbar-inner { display:flex; align-items:center; justify-content:space-between; width:100%; }
+    .btn-fullscreen {
+      position:relative; z-index:2; flex-shrink:0;
+      background:transparent;
+      border:1px solid rgba(214,156,56,.5);
+      color:#f1c567; padding:7px 12px; border-radius:10px;
+      cursor:pointer; font-size:20px; line-height:1;
+      transition:all .2s;
+    }
+    .btn-fullscreen:hover { background:rgba(214,156,56,.15); transform:translateY(-2px); }
+
+    /* ── Modal gráfico ── */
+    #modalGraficos {
+      display:none; position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+      align-items:center; justify-content:center; padding:16px;
+    }
+    #modalGraficos.open { display:flex; }
+    .modal-box {
+      background:linear-gradient(135deg,rgba(10,23,42,.97),rgba(10,22,39,.99));
+      border:1px solid rgba(214,156,56,.4);
+      border-radius:20px; width:100%; max-width:1100px;
+      max-height:90vh; overflow-y:auto;
+      box-shadow:0 32px 64px rgba(0,0,0,.6);
+    }
+    .modal-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 20px; border-bottom:1px solid rgba(214,156,56,.2);
+      position:sticky; top:0;
+      background:linear-gradient(135deg,rgba(10,23,42,.99),rgba(10,22,39,.99));
+      border-radius:20px 20px 0 0; z-index:1;
+    }
+    .modal-head h3 { margin:0; font-size:18px; color:#f1c567; }
+    .modal-close {
+      background:rgba(214,156,56,.15); border:1px solid rgba(214,156,56,.3);
+      color:#f1c567; width:32px; height:32px; border-radius:50%;
+      cursor:pointer; font-size:18px; display:flex; align-items:center;
+      justify-content:center; transition:all .2s;
+    }
+    .modal-close:hover { background:rgba(214,156,56,.3); }
+    .modal-body { padding:20px; }
+    .modal-controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .chart-sel {
+      padding:6px 10px !important; font-size:12px !important;
+      border-radius:8px !important; min-height:auto !important;
+      border:1px solid rgba(214,156,56,.3) !important;
+      background:rgba(9,20,36,.8) !important; color:#f3e8c6 !important;
+      cursor:pointer;
+    }
+    .chart-main-wrap { position:relative; height:280px; margin-bottom:16px; }
+    .chart-sub-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .chart-sub-box { }
+    .chart-sub-label {
+      font-size:11px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.3px; color:rgba(243,232,198,.45); margin-bottom:8px;
+    }
+    .chart-sub-wrap { position:relative; height:200px; }
+
+    /* ── Alertas troca óleo ── */
+    #dashAlertasOleo { margin-bottom:14px; display:flex; flex-direction:column; gap:7px; }
+    .alerta-oleo {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 16px; border-radius:12px; font-size:13px;
+    }
+    .alerta-oleo.vencido { background:rgba(139,28,28,.25); border:1px solid rgba(200,50,50,.5); color:#ffaaaa; }
+    .alerta-oleo.proximo { background:rgba(139,100,0,.22); border:1px solid rgba(214,156,56,.5); color:#f4cd71; }
+    .alerta-oleo-icon { font-size:18px; flex-shrink:0; }
+    .alerta-oleo-text strong { display:block; font-size:13px; font-weight:700; }
+    .alerta-oleo-text span { font-size:11px; opacity:.8; }
+
+    /* ── Cards troca óleo ── */
+    .troca-oleo-cards {
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:12px; margin-bottom:14px;
+    }
+    .to-card {
+      border-radius:16px; padding:14px 16px;
+      border:1px solid rgba(214,156,56,.2);
+      border-top:4px solid rgba(214,156,56,.3);
+      background:linear-gradient(135deg,rgba(10,23,42,.7),rgba(10,22,39,.8));
+      box-shadow:0 12px 24px rgba(0,0,0,.22);
+    }
+    .to-card.ok      { border-top-color:#1a6b38; }
+    .to-card.proximo { border-top-color:#c8a84b; }
+    .to-card.vencido { border-top-color:#8b1c1c; }
+    .to-card.sem     { border-top-color:rgba(214,156,56,.2); }
+    .to-card-title { font-size:14px; font-weight:700; color:#f1c567; margin-bottom:3px; }
+    .to-card-placa { font-size:11px; color:rgba(243,232,198,.45); margin-bottom:10px; }
+    .to-card-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+    .to-card-row span { color:rgba(243,232,198,.5); }
+    .to-card-row strong { color:#f3e8c6; }
+    .to-card-status { margin-top:8px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; display:inline-block; }
+    .to-card-status.ok      { background:rgba(26,107,56,.3);   color:#4ecf7e; }
+    .to-card-status.proximo { background:rgba(200,168,75,.2);   color:#f4cd71; }
+    .to-card-status.vencido { background:rgba(139,28,28,.3);    color:#ff9999; }
+    .to-card-status.sem     { background:rgba(255,255,255,.07); color:rgba(243,232,198,.4); }
+    .to-km-bar  { height:5px; background:rgba(255,255,255,.1); border-radius:3px; margin-top:9px; overflow:hidden; }
+    .to-km-fill { height:100%; border-radius:3px; transition:width .4s; }
+    .fill-ok      { background:#1a6b38; }
+    .fill-proximo { background:#c8a84b; }
+    .fill-vencido { background:#8b1c1c; }
+
+    /* ── Botões extra ── */
+    .btn-print {
+      background:linear-gradient(180deg,#1a3a6b,#0e2147);
+      color:#f1c567; border:1px solid rgba(214,156,56,.4);
+    }
+    .btn-print:hover { background:linear-gradient(180deg,#244880,#1a3a6b); }
+    .btn-export-csv {
+      background:linear-gradient(180deg,#1e6b3a,#124425);
+      color:#fff; border:none;
+    }
+    .btn-export-csv:hover { background:linear-gradient(180deg,#237a45,#1e6b3a); }
+    .btn-chart {
+      background:linear-gradient(180deg,rgba(200,168,75,.3),rgba(200,168,75,.15));
+      color:#f1c567; border:1px solid rgba(214,156,56,.4);
+    }
+    .btn-chart:hover { background:linear-gradient(180deg,rgba(200,168,75,.45),rgba(200,168,75,.25)); }
+
+    /* ── Detalhes expansíveis na tabela ── */
+    .row-detail { background:rgba(9,20,36,.6) !important; }
+    .row-detail td { padding:0 !important; border-bottom:1px solid rgba(214,156,56,.15) !important; }
+    .detail-inner {
+      padding:12px 16px; display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+      gap:8px 16px;
+    }
+    .detail-item { font-size:12px; }
+    .detail-item span { color:rgba(243,232,198,.5); display:block; font-size:11px; margin-bottom:2px; }
+    .detail-item strong { color:#f3e8c6; }
+    .icon-btn.expand { background:rgba(214,156,56,.2); color:#f1c567; }
+    .icon-btn.expand:hover { background:rgba(214,156,56,.35); }
+
+    /* ── Topbar fix para botão fullscreen ── */
+    .topbar { display:flex !important; align-items:center !important; gap:12px !important; }
+    .topbar .topbar-content { flex:1; }
+
+    /* ── Modais neon ── */
+    .modal-neon {
+      display:none; position:fixed; inset:0; z-index:10000;
+      background:rgba(0,0,0,.80); backdrop-filter:blur(8px);
+      align-items:center; justify-content:center; padding:16px;
+    }
+    .modal-neon.open { display:flex; }
+    .modal-neon-box {
+      background:linear-gradient(135deg,rgba(8,18,36,.98),rgba(10,22,40,.99));
+      border:1px solid rgba(214,156,56,.5);
+      border-radius:20px; width:100%; max-width:780px;
+      max-height:88vh; overflow-y:auto;
+      box-shadow:0 0 40px rgba(214,156,56,.18), 0 32px 64px rgba(0,0,0,.7);
+    }
+    .modal-neon-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 22px; border-bottom:1px solid rgba(214,156,56,.25);
+      position:sticky; top:0;
+      background:linear-gradient(135deg,rgba(8,18,36,.99),rgba(10,22,40,.99));
+      border-radius:20px 20px 0 0; z-index:1;
+    }
+    .modal-neon-head h3 { margin:0; font-size:17px; color:#f1c567; }
+    .modal-neon-body { padding:20px 22px; }
+    .modal-neon-foot {
+      padding:14px 22px; border-top:1px solid rgba(214,156,56,.2);
+      display:flex; gap:10px; justify-content:flex-end;
+      position:sticky; bottom:0;
+      background:linear-gradient(135deg,rgba(8,18,36,.99),rgba(10,22,40,.99));
+      border-radius:0 0 20px 20px;
+    }
+
+    /* Tabela dentro do modal neon */
+    .modal-neon-body table { width:100%; border-collapse:collapse; font-size:12px; }
+    .modal-neon-body thead tr { background:rgba(214,156,56,.15); }
+    .modal-neon-body thead th { padding:8px 10px; color:#f1c567; font-weight:700; text-transform:uppercase; font-size:10px; letter-spacing:.4px; text-align:left; border-bottom:1px solid rgba(214,156,56,.3); }
+    .modal-neon-body tbody tr { transition:background .15s; }
+    .modal-neon-body tbody tr:hover { background:rgba(214,156,56,.07); }
+    .modal-neon-body tbody td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.05); color:#f3e8c6; }
+
+    /* Grid de detalhes no modal */
+    .modal-detail-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px 18px; margin-bottom:16px; }
+    .modal-detail-item { font-size:12px; }
+    .modal-detail-item span { color:rgba(243,232,198,.5); display:block; font-size:10px; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+    .modal-detail-item strong { color:#f3e8c6; font-size:13px; }
+
+    /* Barra de status no modal troca */
+    .modal-status-bar {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 14px; border-radius:10px; margin-bottom:16px; font-size:13px;
+    }
+    .modal-status-bar.ok      { background:rgba(26,107,56,.25); border:1px solid rgba(78,207,126,.3); color:#4ecf7e; }
+    .modal-status-bar.proximo { background:rgba(139,100,0,.25); border:1px solid rgba(214,156,56,.4); color:#f4cd71; }
+    .modal-status-bar.vencido { background:rgba(139,28,28,.28); border:1px solid rgba(200,50,50,.4); color:#ffaaaa; }
+    .modal-status-bar.sem     { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:rgba(243,232,198,.5); }
+
+    /* Hover neon nos cards de troca de óleo */
+    .to-card {
+      cursor:pointer;
+      transition:transform .18s, box-shadow .18s, border-color .18s;
+    }
+    .to-card:hover {
+      transform:translateY(-4px);
+      box-shadow:0 0 22px rgba(214,156,56,.28), 0 18px 36px rgba(0,0,0,.35);
+      border-color:rgba(214,156,56,.55);
+    }
+    .to-card.ok:hover      { box-shadow:0 0 22px rgba(78,207,126,.25), 0 18px 36px rgba(0,0,0,.35); border-color:rgba(78,207,126,.5); }
+    .to-card.vencido:hover { box-shadow:0 0 22px rgba(200,50,50,.3), 0 18px 36px rgba(0,0,0,.35); border-color:rgba(200,50,50,.6); }
+
+    /* Rows clicáveis nas tabelas */
+    #abastecimentosTabela tr[data-id]:not(.row-detail),
+    #consultaTabela tr[data-cid] { cursor:pointer; transition:background .15s; }
+    #abastecimentosTabela tr[data-id]:not(.row-detail):hover,
+    #consultaTabela tr[data-cid]:hover { background:rgba(214,156,56,.07) !important; }
+
+    /* ═══════════ ITEM 2: Card vencido pulsante ═══════════ */
+    @keyframes neonPulse {
+      0%,100% { box-shadow:0 0 6px rgba(200,50,50,.3), 0 0 0 1px rgba(200,50,50,.25); border-color:rgba(200,50,50,.5); }
+      50%      { box-shadow:0 0 18px rgba(200,50,50,.6), 0 0 0 1px rgba(200,50,50,.55); border-color:rgba(200,50,50,.85); }
+    }
+    .to-card.vencido { animation: neonPulse 2.4s ease-in-out infinite; }
+    .to-card.vencido:hover { animation: none; }
+
+    /* ═══════════ ITEM 3: Stat card alerta vencido ═══════════ */
+    @keyframes cardAlertaPulse {
+      0%,100% { box-shadow:0 0 8px rgba(200,50,50,.25), inset 0 0 0 1px rgba(200,50,50,.2); border-color:rgba(200,50,50,.4); }
+      50%      { box-shadow:0 0 22px rgba(200,50,50,.55), inset 0 0 0 1px rgba(200,50,50,.5); border-color:rgba(200,50,50,.75); }
+    }
+    .stat-card-alerta {
+      cursor:pointer;
+      border-top-color:#8b1c1c !important;
+      animation: cardAlertaPulse 2.4s ease-in-out infinite;
+      color:#ffaaaa;
+    }
+    .stat-card-alerta span { color:rgba(255,170,170,.75) !important; }
+    .stat-card-alerta strong { color:#ffaaaa !important; }
+    .cards-grid.five { grid-template-columns: repeat(5, 1fr); gap:12px; }
+    @media (max-width:1400px) { .cards-grid.five { grid-template-columns: repeat(4,1fr) !important; } }
+    @media (max-width:1100px) { .cards-grid.five { grid-template-columns: repeat(3,1fr) !important; } }
+    @media (max-width:750px)  { .cards-grid.five { grid-template-columns: repeat(2,1fr) !important; } }
+    @media (max-width:480px)  { .cards-grid.five { grid-template-columns: 1fr !important; } }
+    .stat-card strong { font-size: clamp(18px, 2vw, 34px) !important; }
+    .stat-card span   { font-size: clamp(10px, 0.9vw, 13px) !important; }
+
+    /* ═══════════ ITEM 4: Layout fixo troca de óleo ═══════════ */
+    .trocaoleo-layout { display:flex; gap:16px; align-items:flex-start; }
+    .trocaoleo-form-fixed { width:320px; flex-shrink:0; position:sticky; top:0; }
+    .trocaoleo-right { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
+    .trocaoleo-cards-panel {
+      background:linear-gradient(135deg,rgba(10,23,42,.7),rgba(10,22,39,.8));
+      border:1px solid rgba(214,156,56,.2); border-radius:16px; padding:14px 16px;
+    }
+    .trocaoleo-cards-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .troca-oleo-cards-horizontal {
+      display:flex; flex-direction:row; gap:12px;
+      overflow-x:auto; padding-bottom:6px;
+    }
+    .troca-oleo-cards-horizontal .to-card { isolation:isolate; }
+    .troca-oleo-cards-horizontal .to-card {
+      min-width:200px; max-width:200px; flex-shrink:0;
+    }
+    .troca-oleo-cards-horizontal::-webkit-scrollbar { height:4px; }
+    .troca-oleo-cards-horizontal::-webkit-scrollbar-track { background:rgba(255,255,255,.05); border-radius:2px; }
+    .troca-oleo-cards-horizontal::-webkit-scrollbar-thumb { background:rgba(214,156,56,.4); border-radius:2px; }
+    @media (max-width:900px) {
+      .trocaoleo-layout { flex-direction:column; }
+      .trocaoleo-form-fixed { width:100%; position:static; }
+    }
+
+    /* ═══════════ ITEM 6+7: btn-link-small, lista tipos ═══════════ */
+    .btn-link-small {
+      background:none; border:none; color:rgba(214,156,56,.7);
+      font-size:10px; cursor:pointer; padding:0 0 0 6px;
+      text-decoration:underline; vertical-align:middle;
+    }
+    .btn-link-small:hover { color:#f1c567; }
+    .tipo-prefixo-item {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:8px 12px; background:rgba(214,156,56,.07);
+      border:1px solid rgba(214,156,56,.15); border-radius:8px;
+      color:#f3e8c6; font-size:13px;
+    }
+    .tipo-prefixo-item .tipo-actions { display:flex; gap:6px; }
+    .tipo-prefixo-item button { background:none; border:none; cursor:pointer; font-size:14px; opacity:.6; transition:opacity .15s; }
+    .tipo-prefixo-item button:hover { opacity:1; }
+
+    /* ═══════════ ITEM 9: Relógio na topbar ═══════════ */
+    .relogio-topbar {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:6px 18px; flex-shrink:0;
+      border-left:1px solid rgba(214,156,56,.18);
+      border-right:1px solid rgba(214,156,56,.18);
+    }
+    .relogio-hora {
+      font-family:'Courier New', monospace; font-size:26px; font-weight:700;
+      color:#f1c567; letter-spacing:3px; line-height:1.1;
+      text-shadow:0 0 16px rgba(241,197,103,.45), 0 0 32px rgba(241,197,103,.15);
+    }
+    .relogio-data {
+      font-size:10px; color:rgba(243,232,198,.5); text-align:center;
+      margin-top:2px; letter-spacing:.3px;
+    }
+    /* Topbar com relógio centralizado */
+    .topbar { justify-content:space-between !important; }
+    .topbar-content { flex:1; }
+
+    /* ── Inputs type=date e type=time nativos ── */
+    input[type="date"], input[type="time"] {
+      color-scheme: light;
+      cursor:pointer;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(0) sepia(1) saturate(5) hue-rotate(5deg) brightness(1.0);
+      opacity: 1 !important;
+      cursor: pointer;
+      padding: 3px;
+      border-radius: 4px;
+      background: rgba(241,197,103,.25);
+      transform: scale(1.2);
+      transition: background .2s, transform .2s;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    input[type="time"]::-webkit-calendar-picker-indicator:hover {
+      background: rgba(241,197,103,.45);
+      transform: scale(1.35);
+      filter: invert(0) sepia(1) saturate(8) hue-rotate(5deg) brightness(1.1);
+    }
+
+    /* ═══════════ Panel cabeçalho fixo + corpo rolável ═══════════ */
+    .panel-sticky-form { display:flex; flex-direction:column; max-height:340px; overflow:hidden; }
+    .panel-head-sticky {
+      position:sticky; top:0; z-index:2; flex-shrink:0;
+      background:linear-gradient(135deg,rgba(10,23,42,.98),rgba(10,22,39,.99));
+      border-radius:16px 16px 0 0;
+    }
+    .panel-body-scroll { overflow-y:auto; flex:1; padding:14px 18px; }
+    .panel-body-scroll::-webkit-scrollbar { width:4px; }
+    .panel-body-scroll::-webkit-scrollbar-track { background:rgba(255,255,255,.04); }
+    .panel-body-scroll::-webkit-scrollbar-thumb { background:rgba(214,156,56,.35); border-radius:2px; }
+    .table-inner { width:100%; border-collapse:collapse; }
+
+    /* Histórico de trocas — altura maior */
+    #trocaOleo .panel-sticky-form:last-child { max-height:320px; }
+
+    /* ═══════════ Scroll horizontal com mouse wheel ═══════════ */
+    .troca-oleo-cards-horizontal { scroll-behavior:smooth; }
+
+
+    /* ═══════════ Efeito magnético nos cards (JS via mousemove) ═══════════ */
+    .to-card {
+      will-change: transform;
+      transform-style: preserve-3d;
+    }
+    /* Stat cards também com hover suave */
+    .stat-card {
+      transition: transform .25s cubic-bezier(.23,1,.32,1), box-shadow .25s;
+      will-change: transform;
+    }
+    .stat-card:not(.stat-card-alerta):hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0,0,0,.3), 0 0 0 1px rgba(214,156,56,.15);
+    }
+
+    /* ═══════════ Alturas fixas nos painéis sticky para não colapsar ═══════════ */
+    .panel-sticky-form { max-height: 380px; }
+    /* Painel de registros de abastecimento — mais alto */
+    #abastecimentos .panel-sticky-form:last-child { max-height: 440px; }
+    /* Consulta filtros — auto (não precisa scroll no form de filtros em si) */
+    #consulta .panel-sticky-form:first-child { max-height: none; overflow:visible; }
+    #consulta .panel-sticky-form:first-child .panel-body-scroll { overflow:visible; max-height:none; }
+    /* Consulta tabela resultados */
+    #consulta .panel-sticky-form:last-child { max-height: 420px; }
+    /* Dashboard últimos abastecimentos */
+    #dashboard .panel-sticky-form { max-height: 320px; }
+
+    /* thead sticky dentro de panel-body-scroll */
+    .panel-body-scroll table thead th {
+      position: sticky; top: 0; z-index: 1;
+      background: linear-gradient(135deg,rgba(10,23,42,.98),rgba(10,22,40,.99));
+    }
+
+
+    /* ═══════════ Comprovantes ═══════════ */
+    .comprovante-upload-area {
+      border:2px dashed rgba(214,156,56,.3); border-radius:12px;
+      padding:16px; text-align:center; transition:border-color .2s;
+    }
+    .comprovante-upload-area:hover { border-color:rgba(214,156,56,.6); }
+    .comprovante-label {
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      cursor:pointer; color:rgba(243,232,198,.7); font-size:13px;
+    }
+    .comprovante-label small { font-size:10px; color:rgba(243,232,198,.4); }
+    .comprovante-item {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; background:rgba(214,156,56,.07);
+      border:1px solid rgba(214,156,56,.15); border-radius:10px;
+    }
+    .comprovante-icon { font-size:22px; flex-shrink:0; }
+    .comprovante-info { flex:1; min-width:0; }
+    .comprovante-info strong { display:block; font-size:13px; color:#f3e8c6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .comprovante-info span { font-size:10px; color:rgba(243,232,198,.45); }
+    .comprovante-actions { display:flex; gap:6px; flex-shrink:0; }
+    .btn-small { padding:4px 10px !important; font-size:11px !important; }
+    .btn-danger { background:rgba(139,28,28,.4) !important; border-color:rgba(200,50,50,.4) !important; color:#ffaaaa !important; }
+    .btn-danger:hover { background:rgba(180,40,40,.6) !important; }
+    .comprovante-inline {
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    }
+    .comprovante-label-inline {
+      flex:1; padding:8px 12px; cursor:pointer;
+      background:rgba(214,156,56,.07); border:1px dashed rgba(214,156,56,.3);
+      border-radius:8px; font-size:12px; color:rgba(243,232,198,.6);
+      transition:border-color .2s, background .2s;
+    }
+    .comprovante-label-inline:hover {
+      border-color:rgba(214,156,56,.6); background:rgba(214,156,56,.12);
+      color:#f3e8c6;
+    }
+    .comprovante-label-inline.has-file {
+      border-color:rgba(78,207,126,.5); background:rgba(78,207,126,.08);
+      color:#4ecf7e;
+    }
+
+
+    /* ═══════════ Controles do gráfico aprimorado ═══════════ */
+    .chart-ctrl-bar {
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    .chart-ano-nav {
+      display:flex; align-items:center; gap:6px; flex-shrink:0;
+    }
+    .btn-ano {
+      background:rgba(214,156,56,.15); border:1px solid rgba(214,156,56,.3);
+      color:#f1c567; width:28px; height:28px; border-radius:8px;
+      cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;
+      transition:background .15s;
+    }
+    .btn-ano:hover { background:rgba(214,156,56,.3); }
+    .chart-ano-display {
+      font-size:26px; font-weight:800; color:#f1c567; letter-spacing:1px;
+      min-width:70px; text-align:center;
+      text-shadow:0 0 20px rgba(241,197,103,.4);
+    }
+    .chart-scroll-hint {
+      font-size:10px; color:rgba(243,232,198,.3); text-align:center;
+      margin-bottom:4px; letter-spacing:.5px;
+    }
+    .chart-main-wrap { position:relative; height:300px; margin-bottom:16px; }
+    .chart-sub-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    @media(max-width:800px){ .chart-sub-grid { grid-template-columns:1fr; } }
+    .chart-sub-box { background:rgba(10,23,42,.5); border:1px solid rgba(214,156,56,.1); border-radius:12px; padding:12px; }
+    .chart-sub-wrap { position:relative; height:180px; }
+    .chart-sub-label { font-size:10px; color:rgba(243,232,198,.45); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+    /* Pizza detalhe pop */
+    .chart-pizza-detalhe {
+      margin-top:10px; padding:10px 12px; background:rgba(214,156,56,.08);
+      border:1px solid rgba(214,156,56,.2); border-radius:8px; font-size:11px; color:#f3e8c6;
+    }
+    .chart-pizza-detalhe strong { color:#f1c567; display:block; margin-bottom:6px; font-size:12px; }
+
+    /* ═══════════ Filtro comprovantes melhorado ═══════════ */
+    #consulta .field.full { grid-column:1/-1; }
+
+
+    /* ═══════════ Seletor flexível de VTRs ═══════════ */
+    .chart-vtr-selector {
+      display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; align-items:center;
+    }
+    .vtr-toggle {
+      padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600;
+      cursor:pointer; border:1.5px solid; transition:all .18s;
+      user-select:none;
+    }
+    .vtr-toggle.off {
+      background:rgba(255,255,255,.04) !important;
+      border-color:rgba(255,255,255,.12) !important;
+      color:rgba(243,232,198,.3) !important;
+    }
+    .vtr-toggle-all {
+      padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700;
+      cursor:pointer; border:1.5px solid rgba(214,156,56,.4);
+      background:rgba(214,156,56,.1); color:#f1c567; transition:all .18s;
+    }
+    .vtr-toggle-all:hover { background:rgba(214,156,56,.25); }
+
+    /* ═══════════ Título grande do gráfico ═══════════ */
+    #modalGraficos .modal-head h3 {
+      font-size:20px !important; color:#f1c567; font-weight:800;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    /* ═══════════ Sub-gráficos clicáveis ═══════════ */
+    .chart-sub-clickable {
+      cursor:pointer; transition:transform .18s, box-shadow .18s, border-color .18s;
+    }
+    .chart-sub-clickable:hover {
+      transform:translateY(-3px);
+      box-shadow:0 0 20px rgba(214,156,56,.2), 0 12px 28px rgba(0,0,0,.35);
+      border-color:rgba(214,156,56,.4);
+    }
+    .chart-sub-clickable .chart-sub-label::after { content:" 🔍"; opacity:.5; }
+
+    /* Tabela no sub-gráfico ampliado */
+    #subGraficoTabela table { width:100%; border-collapse:collapse; font-size:12px; }
+    #subGraficoTabela thead th { padding:7px 10px; color:#f1c567; font-size:10px; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid rgba(214,156,56,.3); text-align:left; background:rgba(214,156,56,.08); }
+    #subGraficoTabela tbody td { padding:7px 10px; border-bottom:1px solid rgba(255,255,255,.05); color:#f3e8c6; }
+    #subGraficoTabela tbody tr:hover { background:rgba(214,156,56,.06); }
+
+
+    /* Sub-gráfico modal: scroll na tabela */
+    #subGraficoTabela { scrollbar-width:thin; scrollbar-color:rgba(214,156,56,.4) rgba(255,255,255,.04); }
+    #subGraficoTabela::-webkit-scrollbar { width:5px; }
+    #subGraficoTabela::-webkit-scrollbar-track { background:rgba(255,255,255,.04); border-radius:3px; }
+    #subGraficoTabela::-webkit-scrollbar-thumb { background:rgba(214,156,56,.4); border-radius:3px; }
+    /* thead sticky dentro do subGraficoTabela */
+    #subGraficoTabela thead th { position:sticky; top:0; z-index:2; }
+
+    /* ═══════════ Comprovantes no modal de detalhes ═══════════ */
+    .comp-vazio {
+      font-size:12px; color:rgba(243,232,198,.3); text-align:center;
+      padding:16px 0; font-style:italic;
+    }
+    .comp-row {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 10px; border-radius:10px; margin-bottom:6px;
+      background:rgba(214,156,56,.06);
+      border:1px solid rgba(214,156,56,.12);
+      transition:background .15s;
+    }
+    .comp-row:hover { background:rgba(214,156,56,.12); }
+    .comp-row-icon { font-size:20px; flex-shrink:0; }
+    .comp-row-info { flex:1; min-width:0; }
+    .comp-row-info strong {
+      display:block; font-size:12px; color:#f3e8c6;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .comp-row-info span { font-size:10px; color:rgba(243,232,198,.4); }
+    .comp-row-actions { display:flex; gap:6px; flex-shrink:0; }
+    .comp-btn-ver {
+      padding:4px 10px; font-size:11px; font-weight:600; border-radius:7px;
+      cursor:pointer; border:1px solid rgba(100,160,255,.4);
+      background:rgba(100,160,255,.12); color:rgba(140,190,255,.9);
+      transition:background .15s;
+    }
+    .comp-btn-ver:hover { background:rgba(100,160,255,.25); }
+    .comp-btn-del {
+      padding:4px 8px; font-size:11px; border-radius:7px; cursor:pointer;
+      border:1px solid rgba(200,50,50,.3); background:rgba(200,50,50,.1);
+      color:#ffaaaa; transition:background .15s;
+    }
+    .comp-btn-del:hover { background:rgba(200,50,50,.25); }
+    /* Scrollbar lista comprovantes */
+    #listaComprovantesModal::-webkit-scrollbar { width:4px; }
+    #listaComprovantesModal::-webkit-scrollbar-track { background:rgba(255,255,255,.04); }
+    #listaComprovantesModal::-webkit-scrollbar-thumb { background:rgba(214,156,56,.35); border-radius:2px; }
+    /* Lightbox */
+    #lightboxViewer.open { display:flex !important; }
+
+    /* ═══════════ Cards clicáveis do dashboard ═══════════ */
+    .stat-card-click {
+      cursor: pointer;
+      position: relative;
+      transition: transform .18s, box-shadow .18s, border-color .18s;
+    }
+    .stat-card-click:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 24px rgba(214,156,56,.25), 0 16px 32px rgba(0,0,0,.35);
+      border-color: rgba(214,156,56,.6);
+    }
+    .card-hint {
+      font-size: 9px; color: rgba(243,232,198,.3);
+      text-transform: uppercase; letter-spacing: .5px;
+      margin-top: 6px;
+      transition: color .18s;
+    }
+    .stat-card-click:hover .card-hint { color: rgba(214,156,56,.6); }
+
+    /* Tabela no splash */
+    #splashCardLista table { width:100%; border-collapse:collapse; font-size:12px; }
+    #splashCardLista thead th {
+      padding:8px 10px; color:#f1c567; font-size:10px; text-transform:uppercase;
+      letter-spacing:.4px; border-bottom:1px solid rgba(214,156,56,.3);
+      text-align:left; background:rgba(214,156,56,.08);
+      position:sticky; top:0; z-index:1;
+    }
+    #splashCardLista tbody td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.05); color:#f3e8c6; }
+    #splashCardLista tbody tr:hover { background:rgba(214,156,56,.06); cursor:pointer; }
+    /* Scrollbar */
+    #splashCardLista::-webkit-scrollbar { width:4px; }
+    #splashCardLista::-webkit-scrollbar-track { background:rgba(255,255,255,.04); }
+    #splashCardLista::-webkit-scrollbar-thumb { background:rgba(214,156,56,.35); border-radius:2px; }
+    /* Mini resumo cards */
+    .splash-mini-card {
+      background:rgba(214,156,56,.07); border:1px solid rgba(214,156,56,.18);
+      border-radius:10px; padding:10px 14px; min-width:130px; flex:1 1 150px;
+    }
+    .splash-mini-card span { display:block; font-size:9px; color:rgba(243,232,198,.45); text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+    .splash-mini-card strong { font-size:16px; color:#f1c567; font-weight:800; }
+    #modalSplashCard .modal-neon-box {
+      width:calc(100vw - 24px);
+      height:calc(100vh - 24px);
+      max-width:none !important;
+      max-height:none !important;
+      min-height:0;
+      border-radius:16px;
+      animation:splashPanelIn .22s cubic-bezier(.2,.85,.25,1);
+    }
+    #modalSplashCard.modal-neon {
+      align-items:stretch;
+      justify-content:stretch;
+      padding:12px;
+    }
+    #modalSplashCard.open {
+      animation:splashBackdropIn .18s ease-out;
+    }
+    @keyframes splashBackdropIn {
+      from { opacity:0; backdrop-filter:blur(0); }
+      to { opacity:1; backdrop-filter:blur(8px); }
+    }
+    @keyframes splashPanelIn {
+      from { opacity:0; transform:translateY(18px) scale(.985); }
+      to { opacity:1; transform:translateY(0) scale(1); }
+    }
+    #modalSplashCard #splashCardResumo {
+      display:grid !important;
+      grid-template-columns:repeat(6,minmax(130px,1fr));
+      gap:12px !important;
+      align-items:stretch;
+    }
+    #modalSplashCard #splashCardLista {
+      padding:16px 20px 12px !important;
+    }
+    #modalSplashCard #splashCardLista table {
+      font-size:13px;
+    }
+    #modalSplashCard #splashCardLista tbody td {
+      padding:11px 10px;
+    }
+    @media (max-width:1100px) {
+      #modalSplashCard #splashCardResumo { grid-template-columns:repeat(3,minmax(130px,1fr)); }
+    }
+    @media (max-width:720px) {
+      #modalSplashCard #splashCardResumo { grid-template-columns:repeat(2,minmax(120px,1fr)); }
+    }
+
+    /* ── Filtros inline no splash de litros ── */
+    .splash-filter-bar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 20px 12px;
+      border-bottom: 1px solid rgba(214,156,56,.15);
+      background: rgba(214,156,56,.03);
+      flex-shrink: 0;
+    }
+    .splash-filter-bar label {
+      font-size: 10px; color: rgba(243,232,198,.5); text-transform: uppercase;
+      letter-spacing: .4px; white-space: nowrap;
+    }
+    .splash-filter-bar select,
+    .splash-filter-bar input[type="number"],
+    .splash-filter-bar input[type="date"] {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(214,156,56,.25);
+      color: #f3e8c6; border-radius: 6px; padding: 5px 8px;
+      font-size: 12px; outline: none;
+    }
+    .splash-filter-bar input[type="date"] {
+      color-scheme: dark;
+      min-width: 130px;
+    }
+    .splash-filter-bar select:focus,
+    .splash-filter-bar input[type="number"]:focus,
+    .splash-filter-bar input[type="date"]:focus {
+      border-color: rgba(214,156,56,.6);
+    }
+    .splash-filter-bar .sep { flex: 1; }
+
+    /* ── Cards de veículo no splash litros ── */
+    .litros-veic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      padding: 14px 20px;
+    }
+    .litros-veic-card {
+      background: rgba(214,156,56,.06);
+      border: 1px solid rgba(214,156,56,.18);
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: default;
+      transition: border-color .18s, background .18s;
+      position: relative;
+      overflow: hidden;
+    }
+    .litros-veic-card:hover { background: rgba(214,156,56,.11); border-color: rgba(214,156,56,.4); }
+    .litros-veic-card.zero { opacity: .45; }
+    .litros-veic-card .lvc-prefixo {
+      font-size: 13px; font-weight: 800; color: #f1c567; letter-spacing: .5px;
+    }
+    .litros-veic-card .lvc-placa {
+      font-size: 10px; color: rgba(243,232,198,.45); margin-top: 1px; margin-bottom: 10px;
+    }
+    .litros-veic-card .lvc-litros {
+      font-size: 22px; font-weight: 900; color: #f1c567; line-height: 1;
+    }
+    .litros-veic-card .lvc-litros-label {
+      font-size: 9px; color: rgba(243,232,198,.45); text-transform: uppercase;
+      letter-spacing: .4px; margin-top: 2px;
+    }
+    .litros-veic-card .lvc-abast {
+      font-size: 10px; color: rgba(243,232,198,.5); margin-top: 6px;
+    }
+    .litros-veic-card .lvc-bar-wrap {
+      margin-top: 8px; height: 4px; border-radius: 2px;
+      background: rgba(214,156,56,.12); width: 100%;
+    }
+    .litros-veic-card .lvc-bar-fill {
+      height: 100%; border-radius: 2px; background: rgba(214,156,56,.65);
+      transition: width .4s;
+    }
+    .litros-veic-card .lvc-pct {
+      font-size: 9px; color: rgba(243,232,198,.35); margin-top: 3px; text-align: right;
+    }
+    /* View toggle */
+    .splash-view-toggle {
+      display: flex; gap: 4px;
+    }
+    .splash-view-toggle button {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(214,156,56,.2);
+      color: rgba(243,232,198,.5); border-radius: 6px; padding: 4px 9px;
+      font-size: 11px; cursor: pointer; transition: all .18s;
+    }
+    .splash-view-toggle button.active {
+      background: rgba(214,156,56,.18); border-color: rgba(214,156,56,.5);
+      color: #f1c567;
+    }
+
+    /* Botão Mesclar JSON */
+    .btn-merge {
+      background: linear-gradient(180deg, #1a5c3a, #0f3b25);
+      color: #6effc0;
+      border: 1px solid rgba(78,207,126,.4);
+    }
+    .btn-merge:hover { background: linear-gradient(180deg, #226e47, #1a5c3a); }
+
+    /* ═══ Dashboard: grid de cards adaptável ═══ */
+    .cards-grid.dash-cards {
+      display: grid !important;
+      grid-template-columns: repeat(7, 1fr) !important;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    @media(max-width:1400px){.cards-grid.dash-cards{grid-template-columns:repeat(5,1fr)!important;}}
+    @media(max-width:1100px){.cards-grid.dash-cards{grid-template-columns:repeat(4,1fr)!important;}}
+    @media(max-width:750px) {.cards-grid.dash-cards{grid-template-columns:repeat(2,1fr)!important;}}
+
+    /* Dashboard layout — controlado pelo styles.css */
+  </style>
+</head>
+<body>
+  <!-- Modal de gráficos -->
+  <div id="modalGraficos">
+    <div class="modal-box" style="max-width:1160px">
+      <div class="modal-head">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:rgba(243,232,198,.45);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Guarda Civil Municipal de Ipatinga</div>
+          <h3 id="chartTituloModal">📊 Comparativo de Abastecimentos — Todos os veículos</h3>
+        </div>
+        <button class="modal-close" id="btnFecharModal">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Controles -->
+        <div class="chart-ctrl-bar">
+          <div class="chart-ano-nav">
+            <button class="btn-ano" id="btnAnoAnterior">◀</button>
+            <span class="chart-ano-display" id="chartAnoDisplay">2025</span>
+            <button class="btn-ano" id="btnAnoProximo">▶</button>
+          </div>
+          <select id="chartMetrica" class="chart-sel">
+            <option value="litros">Litros por abastecimento</option>
+            <option value="qtd">Nº de abastecimentos</option>
+            <option value="valor">Valor total (R$)</option>
+            <option value="mediaLitro">Preço médio R$/L</option>
+          </select>
+          <select id="chartTipo" class="chart-sel">
+            <option value="bar">Barras agrupadas</option>
+            <option value="bar-stack">Barras empilhadas</option>
+            <option value="line">Linhas Bézier</option>
+            <option value="area">Área preenchida</option>
+          </select>
+          <button class="btn btn-print" id="btnImprimirGrafico" style="padding:6px 12px;font-size:12px;margin-left:auto">🖨 Imprimir</button>
+        </div>
+
+        <!-- Seleção flexível de veículos -->
+        <div class="chart-vtr-selector" id="chartVtrSelector">
+          <!-- Populado dinamicamente -->
+        </div>
+
+        <!-- Gráfico principal -->
+        <div class="chart-main-wrap" id="chartMainWrap">
+          <div class="chart-scroll-hint">← scroll do mouse para navegar entre anos →</div>
+          <canvas id="chartPrincipal"></canvas>
+        </div>
+
+        <!-- Sub-gráficos clicáveis -->
+        <div class="chart-sub-grid">
+          <div class="chart-sub-box chart-sub-clickable" onclick="abrirSubGrafico('pizza')" title="Clique para ampliar">
+            <div class="chart-sub-label">🍕 Total de valor por veículo · clique para detalhes completos</div>
+            <div class="chart-sub-wrap"><canvas id="chartPizza"></canvas></div>
+          </div>
+          <div class="chart-sub-box chart-sub-clickable" onclick="abrirSubGrafico('preco')" title="Clique para ampliar">
+            <div class="chart-sub-label">⛽ KM por abastecimento e consumo (L) · clique para ampliar</div>
+            <div class="chart-sub-wrap"><canvas id="chartPreco"></canvas></div>
+          </div>
+          <div class="chart-sub-box chart-sub-clickable" onclick="abrirSubGrafico('ranking')" title="Clique para ampliar">
+            <div class="chart-sub-label">🏆 Ranking — Litros e KM/L por viatura · clique para ampliar</div>
+            <div class="chart-sub-wrap"><canvas id="chartRanking"></canvas></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de sub-gráfico ampliado -->
+  <div id="modalSubGrafico" class="modal-neon" style="z-index:20000">
+    <div class="modal-neon-box" style="max-width:980px;max-height:94vh;display:flex;flex-direction:column">
+      <div class="modal-neon-head">
+        <h3 id="subGraficoTitulo">Detalhe</h3>
+        <button class="modal-close" onclick="fecharSubGrafico()">✕</button>
+      </div>
+      <!-- Gráfico FIXO — não rola -->
+      <div style="flex-shrink:0;padding:16px 20px 0;position:relative;height:360px">
+        <canvas id="chartSubAmpliado"></canvas>
+      </div>
+      <!-- Separador -->
+      <div style="flex-shrink:0;height:1px;background:rgba(214,156,56,.2);margin:12px 20px 0"></div>
+      <!-- Lista ROLÁVEL -->
+      <div id="subGraficoTabela"
+        style="flex:1;overflow-y:auto;padding:12px 20px 4px;min-height:0">
+      </div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-print" onclick="imprimirSubGrafico()">🖨 Imprimir</button>
+        <button class="btn btn-secondary" onclick="fecharSubGrafico()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="./assets/brasao-gcm.png" alt="Brasão Guarda Civil Municipal de Ipatinga" class="brand-logo" />
+        <div>
+          <h1>Guarda Municipal de Ipatinga</h1>
+          <p>Centro institucional de gestão operacional</p>
+        </div>
+      </div>
+      <nav class="menu">
+        <button class="menu-item active" data-screen="dashboard">Iniciar</button>
+        <button class="menu-item" data-screen="abastecimentos">Abastecimentos</button>
+        <button class="menu-item" data-screen="consulta">Consulta</button>
+        <button class="menu-item" data-screen="trocaOleo">🛢️ Troca de Óleo</button>
+        <button class="menu-item" data-screen="cadastros">Cadastros</button>
+        <button class="menu-item" data-screen="config">Fluxo do sistema</button>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="topbar-content">
+          <span class="topbar-badge">Guarda Municipal de Ipatinga · ambiente interno</span>
+          <h2 id="screenTitle">Gerenciamento de Abastecimento</h2>
+          <p id="screenSubtitle">Controle operacional de abastecimentos, consultas e cadastros.</p>
+        </div>
+        <div class="relogio-topbar" id="relogioDigital">
+          <div class="relogio-hora" id="relogioHora">00:00:00</div>
+          <div class="relogio-data" id="relogioData">—</div>
+        </div>
+        <button id="btnFullscreen" class="btn-fullscreen" title="Tela cheia">⛶</button>
+      </header>
+
+      <!-- ════════════ DASHBOARD ════════════ -->
+      <section id="dashboard" class="screen active">
+        <div class="cards-grid dash-cards" id="dashCardsRow">
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('abastecimentos')" title="Ver detalhes">
+            <span>Total de abastecimentos</span><strong id="dashTotalRegistros">0</strong>
+            <div class="card-hint">clique para detalhar</div>
+          </article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('litros')" title="Ver detalhes">
+            <span>Litros no período</span><strong id="dashTotalLitros">0</strong>
+            <div class="card-hint">clique para detalhar</div>
+          </article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('valor')" title="Ver detalhes">
+            <span>Valor total</span><strong id="dashTotalValor">R$ 0,00</strong>
+            <div class="card-hint">clique para detalhar</div>
+          </article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('veiculos')" title="Ver detalhes">
+            <span>Veículos ativos</span><strong id="dashVeiculosAtivos">0</strong>
+            <div class="card-hint">clique para detalhar</div>
+          </article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('precoMedio')" title="Ver evolução do preço">
+            <span>Média R$/L — 30 dias</span>
+            <strong id="dashMediaPreco">—</strong>
+            <div class="card-hint">clique para detalhar</div>
+          </article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('hoje')" title="Abastecimentos de hoje">
+            <span>Abastec. hoje</span>
+            <strong id="dashHoje">0</strong>
+            <div class="card-hint" id="dashHojeValor" style="font-size:11px;margin-top:2px;color:rgba(241,197,103,.55)">R$ 0,00</div>
+          </article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('motoristas')" title="Ver motoristas">
+            <span>Motoristas — 30 dias</span>
+            <strong id="dashMotoristasAtivos">0</strong>
+            <div class="card-hint">clique para detalhar</div>
+          </article>
+          <article class="stat-card stat-card-alerta" id="dashCardAlerta" style="display:none" onclick="abrirModalAlertasVencidos()" title="Clique para ver detalhes">
+            <span>⚠️ Atenção</span>
+            <strong id="dashAlertaTexto">—</strong>
+            <small id="dashAlertaSubtexto" style="font-size:10px;opacity:.8;display:block;margin-top:2px">Troca(s) vencida(s)</small>
+          </article>
+        </div>
+        <div id="dashAlertasOleo"></div>
+        <div class="cards-grid two dash-panels-row">
+          <article class="panel dash-panel-full">
+            <div class="panel-head panel-head-sticky"><h3>Últimos abastecimentos</h3></div>
+            <div class="panel-body-scroll dash-scroll-full" id="dashUltimosScroll">
+              <table class="table-inner">
+                <thead><tr><th>ID</th><th>Data</th><th>Prefixo</th><th>Placa</th><th>Motorista</th><th>Valor</th></tr></thead>
+                <tbody id="dashUltimos"></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel dash-panel-full" style="display:flex;flex-direction:column;overflow:hidden">
+            <div class="panel-head panel-head-sticky" style="flex-shrink:0"><h3>Consumo por placa e período</h3></div>
+            <div class="form-grid compact-grid" style="flex-shrink:0;padding:10px 14px 6px">
+              <div class="field"><label>Placa</label><select id="dashAggPlaca"></select></div>
+              <div class="field"><label>Período</label>
+                <select id="dashAggPeriodoTipo">
+                  <option value="dias">Dias</option><option value="semanas">Semanas</option>
+                  <option value="meses">Meses</option><option value="anos">Anos</option>
+                </select>
+              </div>
+              <div class="field"><label>Quantidade</label><input id="dashAggPeriodoValor" type="number" min="1" step="1" value="1" /></div>
+              <div class="field"><label>Base</label>
+                <select id="dashAggCampoData">
+                  <option value="dataAbastecimento">Data do abastecimento</option>
+                  <option value="dataLancamento">Data do lançamento</option>
+                </select>
+              </div>
+            </div>
+            <!-- Resumo detalhado -->
+            <div id="dashAggResultado" class="highlight-box" style="flex-shrink:0;margin:0 14px 8px"></div>
+            <!-- Gráfico de barras por abastecimento -->
+            <div style="flex:1;min-height:0;padding:0 14px 10px;position:relative">
+              <canvas id="dashAggChart"></canvas>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ════════════ ABASTECIMENTOS ════════════ -->
+      <section id="abastecimentos" class="screen">
+        <div class="panel panel-sticky-form">
+          <div class="panel-head panel-head-sticky"><h3>Novo abastecimento</h3><span class="tag">Lançamento operacional</span></div>
+          <div class="panel-body-scroll">
+          <form id="formAbastecimento" class="form-grid">
+            <input type="hidden" id="abastecimentoId" />
+            <div class="field"><label>Data do lançamento</label><input type="date" id="dataLancamento" required /></div>
+            <div class="field"><label>Data do abastecimento</label><input type="date" id="dataAbastecimento" required /></div>
+            <div class="field"><label>Hora</label><input type="time" id="horaAbastecimento" required /></div>
+            <div class="field"><label>Setor</label><select id="setorId" required></select></div>
+            <div class="field"><label>Prefixo</label><select id="veiculoId" required></select></div>
+            <div class="field"><label>Motorista</label><select id="motoristaId" required></select></div>
+            <div class="field"><label>Inspetor em coordenação</label>
+              <select id="inspetorCoordenacao" required>
+                <option value="">Selecione</option>
+                <option value="Inspetor Estelisson">Inspetor Estelisson</option>
+                <option value="Inspetor Wallas">Inspetor Wallas</option>
+                <option value="Inspetor Gilberto">Inspetor Gilberto</option>
+                <option value="Inspetor Pereira">Inspetor Pereira</option>
+              </select>
+            </div>
+            <div class="field"><label>Gerente de Abastecimento</label>
+              <select id="gerenteAbastecimento" required>
+                <option value="">Selecione</option>
+                <option value="Inspetor Estelisson">Inspetor Estelisson</option>
+                <option value="Inspetor Wallas">Inspetor Wallas</option>
+                <option value="Inspetor Gilberto">Inspetor Gilberto</option>
+                <option value="Inspetor Pereira">Inspetor Pereira</option>
+              </select>
+            </div>
+            <div class="field"><label>KM atual</label><input type="number" id="kmAtual" min="0" step="1" required /></div>
+            <div class="field"><label>Autorização</label><input type="text" id="autorizacao" maxlength="6" placeholder="Até 6 dígitos" /></div>
+            <div class="field"><label>Valor unitário</label><input type="number" id="valorUnitario" min="0" step="0.01" required /></div>
+            <div class="field"><label>Litros</label><input type="number" id="qtdLitros" min="0" step="0.01" required /></div>
+            <div class="field readonly-field"><label>Prefixo</label><input type="text" id="prefixoExibicao" readonly /></div>
+            <div class="field readonly-field readonly-select-field"><label>Placa vinculada</label><select id="placaExibicao" disabled><option value="">Selecione o prefixo</option></select></div>
+            <div class="field readonly-field"><label>Combustível</label><input type="text" id="combustivelExibicao" readonly /></div>
+            <div class="field readonly-field"><label>Matrícula</label><input type="text" id="matriculaExibicao" readonly /></div>
+            <div class="field readonly-field"><label>Valor total</label><input type="text" id="valorTotalExibicao" readonly /></div>
+            <div class="field full"><label>Observação</label><textarea id="observacao" rows="3" placeholder="Informações complementares"></textarea></div>
+            <div class="field full">
+              <label>📎 Comprovante de abastecimento</label>
+              <div class="comprovante-inline">
+                <label for="inputComprovanteLancamento" class="comprovante-label-inline">
+                  <span id="comprovanteNomeLancamento">Clique para anexar PDF ou imagem</span>
+                </label>
+                <input type="file" id="inputComprovanteLancamento" accept="image/*,.pdf"
+                  style="display:none" />
+                <button type="button" class="btn btn-small" id="btnLimparComprovanteLancamento"
+                  style="display:none" onclick="limparComprovanteLancamento()">✕ Remover</button>
+              </div>
+              <small style="color:rgba(243,232,198,.35);font-size:10px">
+                Será vinculado ao registro após salvar · Máx. 20 MB
+              </small>
+            </div>
+            <div class="actions-row full">
+              <button type="submit" class="btn btn-primary">Salvar abastecimento</button>
+              <button type="button" id="btnCancelarEdicao" class="btn btn-secondary">Cancelar edição</button>
+            </div>
+          </form>
+          </div><!-- /panel-body-scroll -->
+        </div>
+        <div class="panel panel-sticky-form">
+          <div class="panel-head panel-head-sticky">
+            <h3>Registros</h3>
+            <div class="ordenacao-controls">
+              <label class="ordenacao-label">Ordenar por</label>
+              <select id="abastOrdemCampo" class="ordenacao-select">
+                <option value="dataAbastecimento" selected>Data do abastecimento</option>
+                <option value="dataLancamento">Data do lançamento</option>
+                <option value="id">Ordem de inclusão (ID)</option>
+              </select>
+              <select id="abastOrdemDir" class="ordenacao-select">
+                <option value="desc" selected>↓ Mais recentes</option>
+                <option value="asc">↑ Mais antigas</option>
+              </select>
+              <span class="muted ordenacao-hint">Clique em ▶ para expandir</span>
+            </div>
+          </div>
+          <div class="panel-body-scroll">
+            <table class="table-inner">
+              <thead>
+                <tr>
+                  <th></th><th>ID</th><th>Data</th><th>Prefixo</th><th>Placa</th>
+                  <th>Setor</th><th>Motorista</th><th>KM</th><th>Litros</th><th>Valor</th><th>📎</th><th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="abastecimentosTabela"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ CONSULTA ════════════ -->
+      <section id="consulta" class="screen">
+        <div class="panel panel-sticky-form">
+          <div class="panel-head panel-head-sticky"><h3>Consulta avançada</h3></div>
+          <div class="panel-body-scroll">
+          <div class="form-grid compact-grid">
+            <div class="field"><label>ID</label><input id="fId" type="number" /></div>
+            <div class="field"><label>Pesquisar em</label><select id="fCampoData"><option value="dataAbastecimento">Data do abastecimento</option><option value="dataLancamento">Data do lançamento</option></select></div>
+            <div class="field"><label>Período rápido</label><select id="fPeriodoTipo"><option value="">Livre</option><option value="dias">Dias</option><option value="semanas">Semanas</option><option value="meses">Meses</option><option value="anos">Anos</option></select></div>
+            <div class="field"><label>Quantidade</label><input id="fPeriodoValor" type="number" min="1" step="1" placeholder="Ex.: 7" /></div>
+            <div class="field"><label>Data inicial</label><input id="fDataIni" type="date" /></div>
+            <div class="field"><label>Data final</label><input id="fDataFim" type="date" /></div>
+            <div class="field"><label>Setor</label><select id="fSetor"></select></div>
+            <div class="field"><label>Veículo (filtra por setor)</label><select id="fVeiculo"></select></div>
+            <div class="field"><label>Placa</label><select id="fPlaca"></select></div>
+            <div class="field"><label>Motorista</label><select id="fMotorista"></select></div>
+            <div class="field"><label>Combustível</label><select id="fCombustivel"><option value="">Todos</option></select></div>
+            <div class="field"><label>Autorização</label><input id="fAutorizacao" type="text" /></div>
+            <div class="field"><label>Busca livre</label><input id="fTermoLivre" type="text" placeholder="Placa, motorista, setor, observação..." /></div>
+          </div>
+          <div class="actions-row">
+            <button class="btn btn-secondary" id="btnLimparConsulta">Limpar filtros</button>
+            <button class="btn btn-chart" id="btnAbrirGraficos">📊 Ver gráficos</button>
+            <button class="btn btn-print" id="btnImprimirRelatorio">🖨 Imprimir relatório</button>
+            <button class="btn btn-export-csv" id="btnExportarCsv">⬇ Exportar CSV</button>
+          </div>
+          </div><!-- /panel-body-scroll -->
+        </div>
+        <div class="cards-grid three">
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('abastecimentos')"><span>Registros filtrados</span><strong id="consultaTotal">0</strong><div class="card-hint">clique para detalhar</div></article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('litros')"><span>Litros filtrados</span><strong id="consultaLitros">0</strong><div class="card-hint">clique para detalhar</div></article>
+          <article class="stat-card stat-card-click" onclick="abrirSplashCard('valor')"><span>Valor filtrado</span><strong id="consultaValor">R$ 0,00</strong><div class="card-hint">clique para detalhar</div></article>
+        </div>
+        <div id="consultaPeriodoInfo" class="highlight-box">Período livre.</div>
+        <div class="panel panel-sticky-form">
+          <div class="panel-head panel-head-sticky"><h3>Resultados</h3></div>
+          <div class="panel-body-scroll">
+            <table class="table-inner">
+              <thead>
+                <tr>
+                  <th></th><th>ID</th><th>Lançamento</th><th>Abastecimento</th><th>Hora</th>
+                  <th>Setor</th><th>Prefixo</th><th>Placa</th><th>Motorista</th>
+                  <th>KM</th><th>Litros</th><th>Valor</th>
+                </tr>
+              </thead>
+              <tbody id="consultaTabela"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Painel: Consulta e impressão de comprovantes -->
+        <div class="panel" style="overflow:visible">
+          <div class="panel-head panel-head-sticky">
+            <h3>📎 Comprovantes</h3>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-print" id="btnImprimirComprovantes" style="padding:6px 12px;font-size:12px">🖨 Imprimir</button>
+            </div>
+          </div>
+          <!-- Filtros avançados -->
+          <div class="form-grid compact-grid" style="padding:12px 16px 0;gap:8px">
+            <div class="field"><label>Prefixo / Veículo</label>
+              <select id="fComprovantePrefixo"></select>
+            </div>
+            <div class="field"><label>Período</label>
+              <select id="fComprovantePeriodoTipo">
+                <option value="">Livre</option>
+                <option value="7">Últimos 7 dias</option>
+                <option value="30">Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </div>
+            <div class="field" id="fCompDataIniWrap" style="display:none"><label>Data inicial</label>
+              <input type="date" id="fComprovanteDataIni" />
+            </div>
+            <div class="field" id="fCompDataFimWrap" style="display:none"><label>Data final</label>
+              <input type="date" id="fComprovanteDataFim" />
+            </div>
+            <div class="field"><label>Tipo de arquivo</label>
+              <select id="fComprovanteTipo">
+                <option value="">Todos</option>
+                <option value="pdf">PDF</option>
+                <option value="image">Imagem</option>
+                <option value="other">Outros</option>
+              </select>
+            </div>
+            <div class="field"><label>Buscar por nome</label>
+              <input type="text" id="fComprovanteNome" placeholder="Nome do arquivo..." />
+            </div>
+            <div class="field full" style="display:flex;gap:8px;align-items:flex-end;padding-top:2px">
+              <span style="font-size:10px;color:rgba(243,232,198,.35);font-style:italic;flex:1;padding-bottom:6px">Busca automática ao alterar filtros</span>
+              <button class="btn btn-secondary" id="btnLimparFiltroComp" style="flex:0 0 auto">Limpar</button>
+            </div>
+          </div>
+          <!-- Resumo -->
+          <div id="comprovantesResumo" style="font-size:11px;color:rgba(214,156,56,.6);padding:6px 18px;font-family:monospace"></div>
+          <!-- Lista -->
+          <div class="panel-body-scroll" style="max-height:360px;margin-top:6px" id="listaComprovantesConsulta">
+            <div style="color:rgba(243,232,198,.35);font-size:13px;text-align:center;padding:24px">
+              Carregando comprovantes...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════ TROCA DE ÓLEO ════════════ -->
+      <section id="trocaOleo" class="screen">
+
+        <!-- Formulário: cabeçalho travado, corpo rolável -->
+        <div class="panel panel-sticky-form">
+          <div class="panel-head panel-head-sticky">
+            <h3>Registrar Troca de Óleo</h3><span class="tag">Manutenção preventiva</span>
+          </div>
+          <div class="panel-body-scroll">
+            <form id="formTrocaOleo" class="form-grid compact-grid">
+              <input type="hidden" id="trocaOleoId" />
+              <div class="field"><label>Veículo</label><select id="trocaOleoVeiculoId" required></select></div>
+              <div class="field"><label>Data da troca</label><input type="date" id="trocaOleoData" required /></div>
+              <div class="field"><label>KM na troca</label><input type="number" id="trocaOleoKm" min="0" step="1" required /></div>
+              <div class="field"><label>Intervalo próxima (KM)</label><input type="number" id="trocaOleoIntervalo" min="500" step="500" value="5000" required /></div>
+              <div class="field readonly-field"><label>KM previsto próxima</label><input type="text" id="trocaOleoProximaKm" readonly /></div>
+              <div class="field">
+                <label>Tipo de óleo</label>
+                <select id="trocaOleoTipoOleo">
+                  <option value="">Selecione</option>
+                  <option value="5W-30">5W-30</option>
+                  <option value="5W-40">5W-40</option>
+                  <option value="10W-40">10W-40</option>
+                  <option value="15W-40">15W-40</option>
+                  <option value="20W-50">20W-50</option>
+                  <option value="0W-20">0W-20</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+              <div class="field"><label>Valor por litro (R$)</label><input type="number" id="trocaOleoValorLitro" min="0" step="0.01" placeholder="Ex.: 28,90" /></div>
+              <div class="field"><label>Qtd. litros trocados</label><input type="number" id="trocaOleoQtdLitros" min="0" step="0.1" placeholder="Ex.: 4,5" /></div>
+              <div class="field readonly-field"><label>Custo total (R$)</label><input type="text" id="trocaOleoCustoTotal" readonly placeholder="Calculado automaticamente" /></div>
+              <div class="field full"><label>Observação</label><input type="text" id="trocaOleoObs" placeholder="Filtro, responsável, fornecedor..." /></div>
+              <div class="actions-row full">
+                <button type="submit" class="btn btn-primary">Registrar troca</button>
+                <button type="button" id="btnCancelarTrocaOleo" class="btn btn-secondary">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Cards: scroll horizontal sensível ao mouse -->
+        <div class="trocaoleo-cards-panel">
+          <div class="trocaoleo-cards-head">
+            <span style="font-size:13px;font-weight:700;color:#f1c567">Status por veículo</span>
+            <button class="btn btn-chart" id="btnGraficoOleo" style="padding:6px 12px;font-size:12px">📊 Gráfico</button>
+          </div>
+          <div id="trocaOleoCards" class="troca-oleo-cards-horizontal"></div>
+        </div>
+
+        <!-- Histórico: cabeçalho travado, tabela rolável -->
+        <div class="panel panel-sticky-form">
+          <div class="panel-head panel-head-sticky">
+            <h3>Histórico de trocas</h3>
+            <button class="btn btn-print" id="btnImprimirTrocaOleo" style="padding:8px 12px;font-size:13px">🖨 Imprimir</button>
+          </div>
+          <div class="panel-body-scroll">
+            <table class="table-inner">
+              <thead><tr><th>ID</th><th>Veículo</th><th>Placa</th><th>Data</th><th>KM troca</th><th>Intervalo</th><th>KM próxima</th><th>Tipo óleo</th><th>Qtd.L</th><th>Valor/L</th><th>Custo total</th><th>Observação</th><th>Ações</th></tr></thead>
+              <tbody id="trocaOleoTabela"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ════════════ CADASTROS ════════════ -->
+      <section id="cadastros" class="screen">
+        <div class="cards-grid two">
+          <article class="panel">
+            <div class="panel-head panel-head-sticky"><h3>Cadastro de veículos</h3></div>
+            <form id="formVeiculo" class="form-grid compact-grid">
+              <input type="hidden" id="veiculoEditId" />
+              <div class="field">
+                <label>Tipo <button type="button" class="btn-link-small" onclick="abrirModalGerenciarTipos()">+ gerenciar</button></label>
+                <select id="veiculoPrefixoTipo" required></select>
+              </div>
+              <div class="field"><label>Número prefixo</label><input id="veiculoPrefixoNumero" required type="number" min="1" max="999" step="1" placeholder="Ex.: 006" /></div>
+              <div class="field readonly-field"><label>Identificação final</label><input id="veiculoPrefixo" readonly placeholder="Ex.: Vtr 006 ou MP 001" /></div>
+              <div class="field"><label>Marca / Modelo</label><input id="veiculoMarcaModelo" placeholder="Ex.: Toyota / Yaris" /></div>
+              <div class="field"><label>Placa</label><input id="veiculoPlaca" required placeholder="Ex.: ABC1D23" /></div>
+              <div class="field"><label>Combustível</label><select id="veiculoCombustivel"></select></div>
+              <div class="field"><label>Status</label><select id="veiculoAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+              <div class="actions-row full"><button class="btn btn-primary" type="submit">Salvar veículo</button></div>
+            </form>
+            <div class="table-wrap compact">
+              <table><thead><tr><th>Tipo</th><th>Prefixo</th><th>Marca/Modelo</th><th>Placa</th><th>Combustível</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="veiculosTabela"></tbody></table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head panel-head-sticky"><h3>Cadastro de motoristas</h3></div>
+            <form id="formMotorista" class="form-grid compact-grid">
+              <input type="hidden" id="motoristaEditId" />
+              <div class="field"><label>Nome</label><input id="motoristaNome" required /></div>
+              <div class="field"><label>Matrícula</label><input id="motoristaMatricula" required /></div>
+              <div class="field"><label>Status</label><select id="motoristaAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+              <div class="actions-row full"><button class="btn btn-primary" type="submit">Salvar motorista</button></div>
+            </form>
+            <div class="table-wrap compact">
+              <table><thead><tr><th>Nome</th><th>Matrícula</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="motoristasTabela"></tbody></table>
+            </div>
+          </article>
+        </div>
+        <div class="cards-grid two">
+          <article class="panel">
+            <div class="panel-head panel-head-sticky"><h3>Cadastro de setores</h3></div>
+            <form id="formSetor" class="form-grid compact-grid">
+              <input type="hidden" id="setorEditId" />
+              <div class="field"><label>Nome do setor</label><input id="setorNome" required /></div>
+              <div class="field"><label>Sigla</label><input id="setorSigla" /></div>
+              <div class="actions-row full"><button class="btn btn-primary" type="submit">Salvar setor</button></div>
+            </form>
+            <div class="table-wrap compact">
+              <table><thead><tr><th>Setor</th><th>Sigla</th><th>Ações</th></tr></thead>
+              <tbody id="setoresTabela"></tbody></table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head panel-head-sticky"><h3>Cadastro de combustíveis</h3></div>
+            <form id="formCombustivel" class="form-grid compact-grid">
+              <input type="hidden" id="combustivelEditId" />
+              <div class="field"><label>Nome</label><input id="combustivelNome" required /></div>
+              <div class="actions-row full"><button class="btn btn-primary" type="submit">Salvar combustível</button></div>
+            </form>
+            <div class="table-wrap compact">
+              <table><thead><tr><th>Combustível</th><th>Ações</th></tr></thead>
+              <tbody id="combustiveisTabela"></tbody></table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ════════════ CONFIG ════════════ -->
+      <section id="config" class="screen">
+        <div class="panel controls-panel">
+          <div class="panel-head panel-head-sticky"><h3>Controles do ambiente</h3><span class="tag success">2026.1 — Setembro/2026</span></div>
+          <div id="dbUsageInfo" style="font-size:11px;color:rgba(214,156,56,.6);padding:6px 18px 0;font-family:monospace">IndexedDB: calculando...</div>
+          <p class="muted">Somente nesta tela ficam disponíveis as ações de importação, exportação, limpeza de lançamentos e restauração da base de demonstração.</p>
+          <div class="actions-row controls-actions">
+            <button id="btnSalvarDados" class="btn btn-primary" type="button">Salvar dados</button>
+            <button id="btnImportar" class="btn btn-primary" type="button">⬆ Importar JSON</button>
+            <button id="btnMesclar" class="btn btn-merge" type="button">🔀 Mesclar JSON</button>
+            <button id="btnExportar" class="btn btn-secondary" type="button">⬇ Exportar JSON</button>
+            <button id="btnLimparLancamentos" class="btn btn-warning" type="button">Limpar lançamentos</button>
+            <button id="btnResetDemo" class="btn btn-danger" type="button">Reset demo</button>
+            <input id="inputImportarJson" type="file" accept=".json,application/json" hidden />
+            <input id="inputMesclarJson" type="file" accept=".json,application/json" hidden />
+          </div>
+          <div id="importStatus" class="import-status muted">
+            <strong style="color:rgba(214,156,56,.8)">Salvar dados</strong> — grava manualmente a base atual antes de fechar, exportar ou transferir o sistema.<br>
+            <strong style="color:rgba(243,232,198,.7)">Importar JSON</strong> — substitui todos os dados atuais pelo arquivo importado.<br>
+            <strong style="color:rgba(100,200,150,.8)">Mesclar JSON</strong> — une os dados do arquivo com os dados atuais, sem apagar lançamentos existentes. Ideal para consolidar registros de diferentes servidores.
+          </div>
+        </div>
+        <div class="cards-grid two">
+          <article class="panel">
+            <div class="panel-head panel-head-sticky"><h3>Fluxo operacional</h3></div>
+            <ol class="flow-list">
+              <li><strong>Cadastros</strong> — veículos (com tipo gerenciável), motoristas, setores e combustíveis.</li>
+              <li><strong>Abastecimentos</strong> — lançamento com validação de KM, autorização e valor automático. Comprovantes (PDF/imagem) vinculados a cada registro via IndexedDB.</li>
+              <li><strong>Consulta avançada</strong> — filtros por período, setor, veículo, motorista, placa e texto livre. Exportação CSV e impressão.</li>
+              <li><strong>Dashboard</strong> — 5 cards de KPIs clicáveis, últimos abastecimentos, consumo por placa com gráfico, média R$/L em tempo real.</li>
+              <li><strong>Gráficos comparativos</strong> — comparativo de VTRs por mês/ano com barras, linhas, área e empilhado. Sub-gráficos de pizza, ranking e preço clicáveis.</li>
+              <li><strong>Troca de óleo</strong> — registro com tipo de óleo, litros e custo. Cards de status com alertas visuais pulsantes. Gráfico de consumo de óleo.</li>
+              <li><strong>Import/Export JSON</strong> — exportação completa com comprovantes em base64. Importação com substituição ou mesclagem de dados de múltiplos operadores.</li>
+              <li><strong>Armazenamento</strong> — IndexedDB (~50% do disco livre). Migração automática do localStorage.</li>
+            </ol>
+          </article>
+          <article class="panel">
+            <div class="panel-head panel-head-sticky"><h3>Estrutura prevista de produção</h3></div>
+            <ul class="flow-list">
+              <li>Front-end web responsivo</li>
+              <li>API REST com autenticação</li>
+              <li>Banco PostgreSQL ou MySQL</li>
+              <li>Auditoria de inclusão, edição e exclusão</li>
+              <li>Perfis: administrador, operador, consulta</li>
+            </ul>
+          </article>
+        </div>
+        <div class="dev-credit">Desenvolvido por: Adilson Dias Gomes em 19abril2026.</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: Gerenciar tipos de prefixo de veículo -->
+  <div id="modalGerenciarTipos" class="modal-neon">
+    <div class="modal-neon-box" style="max-width:480px">
+      <div class="modal-neon-head">
+        <h3>⚙️ Gerenciar Tipos de Prefixo</h3>
+        <button class="modal-close" onclick="fecharModalGerenciarTipos()">✕</button>
+      </div>
+      <div class="modal-neon-body">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <input id="novoTipoPrefixo" type="text" placeholder="Novo tipo (ex.: MP, VTR, Bic...)" style="flex:1;padding:8px 12px;background:rgba(9,20,36,.8);border:1px solid rgba(214,156,56,.3);border-radius:8px;color:#f3e8c6;font-size:13px" />
+          <button class="btn btn-primary" onclick="adicionarTipoPrefixo()" style="padding:8px 14px;font-size:13px">Adicionar</button>
+        </div>
+        <div id="listaTiposPrefixo" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-secondary" onclick="fecharModalGerenciarTipos()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Gráfico de troca de óleo -->
+  <div id="modalGraficoOleo" class="modal-neon">
+    <div class="modal-neon-box" style="max-width:900px">
+      <div class="modal-neon-head">
+        <h3>📊 Análise de Troca de Óleo</h3>
+        <button class="modal-close" onclick="fecharModalGraficoOleo()">✕</button>
+      </div>
+      <div class="modal-neon-body">
+        <div class="modal-controls" style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap">
+          <select id="oilChartVeiculo" class="chart-sel">
+            <option value="todos">Todos os veículos</option>
+          </select>
+          <select id="oilChartPeriodo" class="chart-sel">
+            <option value="12">Últimos 12 meses</option>
+            <option value="6">Últimos 6 meses</option>
+            <option value="24">Últimos 24 meses</option>
+          </select>
+          <select id="oilChartMetrica" class="chart-sel">
+            <option value="custo">Custo total (R$)</option>
+            <option value="litros">Litros trocados</option>
+            <option value="qtd">Nº de trocas</option>
+          </select>
+        </div>
+        <div style="position:relative;height:300px;margin-bottom:16px"><canvas id="chartOleoPrincipal"></canvas></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <div class="chart-sub-label">Distribuição por veículo (custo)</div>
+            <div style="position:relative;height:200px"><canvas id="chartOleoPizza"></canvas></div>
+          </div>
+          <div>
+            <div class="chart-sub-label">Custo médio por litro</div>
+            <div style="position:relative;height:200px"><canvas id="chartOleoPreco"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-print" onclick="imprimirGraficoOleo()">🖨 Imprimir relatório</button>
+        <button class="btn btn-secondary" onclick="fecharModalGraficoOleo()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Comprovantes do abastecimento -->
+  <div id="modalComprovantes" class="modal-neon">
+    <div class="modal-neon-box" style="max-width:600px">
+      <div class="modal-neon-head">
+        <h3 id="modalComprovantesTitulo">📎 Comprovantes</h3>
+        <button class="modal-close" onclick="fecharModalComprovantes()">✕</button>
+      </div>
+      <div class="modal-neon-body">
+        <input type="hidden" id="modalComprovantesId" />
+        <!-- Upload -->
+        <div class="comprovante-upload-area">
+          <label for="inputComprovante" class="comprovante-label">
+            <span>📂 Clique para selecionar ou arraste o arquivo</span>
+            <small>PDF, imagem ou qualquer arquivo · Máx. 20 MB por arquivo</small>
+          </label>
+          <input type="file" id="inputComprovante" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            style="display:none" />
+          <button class="btn btn-primary" id="btnUploadComprovante" disabled style="margin-top:10px;width:100%">
+            ⬆ Enviar arquivo
+          </button>
+        </div>
+        <!-- Lista -->
+        <div id="listaComprovantes" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-secondary" onclick="fecharModalComprovantes()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Alertas de trocas vencidas (card dashboard) -->
+  <div id="modalAlertasVencidos" class="modal-neon">
+    <div class="modal-neon-box">
+      <div class="modal-neon-head">
+        <h3>⚠️ Trocas de Óleo com Irregularidades</h3>
+        <button class="modal-close" onclick="fecharModalAlertasVencidos()">✕</button>
+      </div>
+      <div class="modal-neon-body" id="modalAlertasVencidosConteudo"></div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-print" onclick="imprimirModalAlertasVencidos()">🖨 Imprimir</button>
+        <button class="btn btn-secondary" onclick="fecharModalAlertasVencidos()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal splash: detalhamento dos cards do dashboard -->
+  <div id="modalSplashCard" class="modal-neon" style="z-index:15000">
+    <div class="modal-neon-box" style="display:flex;flex-direction:column;max-height:94vh">
+      <div class="modal-neon-head">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <h3 id="splashCardTitulo">Detalhes</h3>
+          <span id="splashLitrosSubperiodo" style="font-size:11px;color:rgba(243,232,198,.4);font-weight:400;letter-spacing:.3px"></span>
+        </div>
+        <button class="modal-close" onclick="fecharSplashCard()">✕</button>
+      </div>
+      <!-- Barra de filtros (visível apenas no modo litros) -->
+      <div id="splashLitrosFiltros" class="splash-filter-bar" style="display:none">
+        <label>De</label>
+        <input id="splashLitrosDataIni" type="date" title="Data inicial" />
+        <label>Até</label>
+        <input id="splashLitrosDataFim" type="date" title="Data final" />
+        <button class="btn btn-secondary" id="btnSplashLitrosTodos" onclick="splashLitrosSetTodos()" style="padding:5px 10px;font-size:11px" title="Exibir todos os registros">Todos</button>
+        <span style="font-size:11px;color:rgba(243,232,198,.25)">|</span>
+        <label>Veículo</label>
+        <select id="splashLitrosVeiculo">
+          <option value="">Todos</option>
+        </select>
+        <label>Combustível</label>
+        <select id="splashLitrosCombustivel">
+          <option value="">Todos</option>
+        </select>
+        <span class="sep"></span>
+        <div class="splash-view-toggle">
+          <button id="splashViewCards" class="active" onclick="splashLitrosSetView('cards')" title="Cards">⊞</button>
+          <button id="splashViewTabela" onclick="splashLitrosSetView('tabela')" title="Tabela">☰</button>
+        </div>
+      </div>
+      <!-- Barra de filtros para splash abastecimentos -->
+      <div id="splashAbastFiltros" class="splash-filter-bar" style="display:none">
+        <label>De</label>
+        <input id="splashAbastDataIni" type="date" />
+        <label>Até</label>
+        <input id="splashAbastDataFim" type="date" />
+        <button class="btn btn-secondary" onclick="splashAbastSetTodos()" style="padding:5px 10px;font-size:11px">Todos</button>
+        <span style="font-size:11px;color:rgba(243,232,198,.25)">|</span>
+        <label>Veículo</label>
+        <select id="splashAbastVeiculo"><option value="">Todos os veículos</option></select>
+        <label>Combustível</label>
+        <select id="splashAbastCombustivel"><option value="">Todos</option></select>
+      </div>
+      <!-- Resumo fixo -->
+      <div id="splashCardResumo" style="flex-shrink:0;padding:14px 20px 10px;
+        display:flex;gap:12px;flex-wrap:wrap;border-bottom:1px solid rgba(214,156,56,.2)"></div>
+      <!-- Cards de veículo (modo litros/cards) -->
+      <div id="splashLitrosCards" class="litros-veic-grid" style="display:none;overflow-y:auto;flex:1;min-height:0"></div>
+      <!-- Lista rolável -->
+      <div id="splashCardLista" style="flex:1;overflow-y:auto;padding:12px 20px 8px;min-height:0">
+      </div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-print" onclick="imprimirSplashCard()">🖨 Imprimir</button>
+        <button class="btn btn-secondary" onclick="fecharSplashCard()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Detalhes de troca de óleo (card click) -->
+  <div id="modalTrocaOleoDetalhe" class="modal-neon">
+    <div class="modal-neon-box">
+      <div class="modal-neon-head">
+        <h3 id="modalTrocaTitulo">🛢️ Histórico de Troca de Óleo</h3>
+        <button class="modal-close" onclick="fecharModalTrocaOleo()">✕</button>
+      </div>
+      <div class="modal-neon-body" id="modalTrocaOleoConteudo"></div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-print" onclick="imprimirModalTrocaOleo()">🖨 Imprimir</button>
+        <button class="btn btn-secondary" onclick="fecharModalTrocaOleo()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Detalhes de abastecimento (row click) -->
+  <div id="modalAbastecimentoDetalhe" class="modal-neon">
+    <div class="modal-neon-box" style="max-width:820px;display:flex;flex-direction:column;max-height:92vh">
+      <div class="modal-neon-head">
+        <h3 id="modalAbastTitulo">⛽ Detalhes do Abastecimento</h3>
+        <button class="modal-close" onclick="fecharModalAbastecimento()">✕</button>
+      </div>
+      <!-- Dados do abastecimento: fixo -->
+      <div id="modalAbastConteudo" style="flex-shrink:0;padding:16px 20px 12px"></div>
+      <!-- Separador -->
+      <div style="flex-shrink:0;height:1px;background:rgba(214,156,56,.2);margin:0 20px"></div>
+      <!-- Comprovantes: fixo cabeçalho + lista rolável -->
+      <div style="flex-shrink:0;padding:12px 20px 8px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <span style="font-size:13px;font-weight:700;color:#f1c567">📎 Comprovantes</span>
+        <label for="inputComprovanteModal" class="btn btn-small"
+          style="cursor:pointer;background:rgba(78,207,126,.15);border:1px solid rgba(78,207,126,.35);color:#4ecf7e;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600">
+          ⬆ Anexar arquivo
+        </label>
+        <input type="file" id="inputComprovanteModal" accept="image/*,.pdf"
+          style="display:none" onchange="uploadComprovanteModal()" />
+      </div>
+      <!-- Lista comprovantes — rolável -->
+      <div id="listaComprovantesModal"
+        style="flex:1;overflow-y:auto;min-height:60px;max-height:260px;padding:0 20px 8px">
+        <div class="comp-vazio">Nenhum comprovante anexado.</div>
+      </div>
+      <div class="modal-neon-foot">
+        <button class="btn btn-print" onclick="imprimirModalAbastecimento()">🖨 Imprimir</button>
+        <button class="btn btn-secondary" onclick="fecharModalAbastecimento()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox para visualização de imagem -->
+  <div id="lightboxViewer" style="display:none;position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,.92);align-items:center;justify-content:center;flex-direction:column;gap:12px">
+    <button onclick="fecharLightbox()" style="position:absolute;top:18px;right:22px;background:none;border:none;color:#f1c567;font-size:28px;cursor:pointer;line-height:1">✕</button>
+    <img id="lightboxImg" src="" alt="Comprovante"
+      style="max-width:90vw;max-height:82vh;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,.8);object-fit:contain" />
+    <div id="lightboxNome" style="font-size:12px;color:rgba(243,232,198,.5)"></div>
+  </div>
+
+  <script src="./db.js"></script>
+  <script src="./app.js"></script>
+
+  <script>
+  // Efeito magnético suave nos cards de troca de óleo
+  document.addEventListener('mousemove', function(e) {
+    // Magnético: cards de troca de óleo (.to-card) + 5º card do dashboard (.stat-card)
+    document.querySelectorAll('.to-card, .stat-card').forEach(card => {
+      if (card.classList.contains('to-card') && card.classList.contains('vencido')) return;
+      const rect = card.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const maxDist = card.classList.contains('stat-card') ? 140 : 180;
+      const maxForce = card.classList.contains('stat-card') ? 5 : 8;
+      if (dist < maxDist) {
+        const force = (1 - dist / maxDist) * maxForce;
+        const tx = (dx / dist) * force;
+        const ty = (dy / dist) * force;
+        const rx = -(dy / dist) * force * 1.2;
+        const ry =  (dx / dist) * force * 1.2;
+        card.style.transform = `translate(${tx}px,${ty}px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+      } else {
+        card.style.transform = '';
+      }
+    });
+    // Magnético nos canvas dos gráficos dentro dos modais
+    document.querySelectorAll('.modal-neon-box canvas').forEach(canvas => {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width) return;
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const maxDist = 280;
+      if (dist < maxDist) {
+        const force = (1 - dist/maxDist) * 4;
+        canvas.style.transform = `translate(${(dx/dist)*force}px,${(dy/dist)*force}px)`;
+        canvas.style.transition = 'transform .08s';
+      } else {
+        canvas.style.transform = '';
+        canvas.style.transition = 'transform .4s';
+      }
+    });
+  });
+
+  // Wheel scroll horizontal nos "Últimos abastecimentos"
+  document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('dashUltimosScroll');
+    if (el) {
+      el.addEventListener('wheel', function(e) {
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        el.scrollTop += e.deltaY;
+      }, {passive: false});
+    }
+  });
+  </script>
+</body>
+</html>
