@@ -141,6 +141,7 @@ let _saveQueue = Promise.resolve();
 let storageReady = false;
 
 function backupStateLocally(snapshot) {
+  if(window.FROTA_CLOUD) return;
   try {
     if (!storageReady) return;
     const serialized = JSON.stringify(snapshot);
@@ -1835,7 +1836,7 @@ function importJson(event) {
         `• ${nComp} comprovante(s)\n\nOs dados atuais serão substituídos.`;
       if (!confirm(msg)) { setImportStatus('Cancelado.','warning'); return; }
       setImportStatus('Importando dados...','info');
-      state=imp; saveStateSync();
+      state=imp; await saveState();
       // Reimportar comprovantes se presentes
       if(nComp>0){
         setImportStatus(`Importando ${nComp} comprovante(s)...`,'info');
@@ -1852,7 +1853,7 @@ function importJson(event) {
               nome:d.nome, tipo:d.tipo, tamanho:d.tamanho,
               data:d.data, blob
             });
-          } catch(e){ console.warn('Comprovante ignorado:',d.nome,e); }
+          } catch(e){ throw new Error('Os cadastros foram importados, mas o comprovante '+d.nome+' falhou: '+e.message); }
         }
       }
       await bootstrap(); setScreen('config');
@@ -1944,7 +1945,7 @@ function mesclarJson(event) {
       // (mantém os IDs originais, apenas garante que nextId() não colide)
       // nextId() já usa Math.max(...ids)+1, então é automático
 
-      saveStateSync();
+      await saveState();
 
       // ── Mesclar comprovantes (apenas os novos — por abastecimentoId não existente) ──
       let compMesclados = 0;
@@ -3891,7 +3892,7 @@ async function bootstrap() {
   // Atualizar uso de armazenamento
   dbUsageInfo().then(info => {
     const el=qs('#dbUsageInfo');
-    if(el) el.textContent=`IndexedDB: ${info.used} usados de ${info.quota} disponíveis (${info.pct}%)`;
+    if(el) el.textContent=window.FROTA_CLOUD?'Dados e comprovantes armazenados no Supabase':`IndexedDB: ${info.used} usados de ${info.quota} disponíveis (${info.pct}%)`;
   });
   syncSelects();
   clearAbastecimentoForm();
@@ -3904,5 +3905,7 @@ async function bootstrap() {
   setScreen('dashboard');
 }
 
-bindAll();
-bootstrap();
+if(window.FROTA_CLOUD){
+  if(typeof cloudStart==='function')cloudStart(async()=>{bindAll();await bootstrap();});
+  else document.getElementById('cloudLoginMessage').textContent='Não foi possível carregar a conexão. Confira sua internet e recarregue a página.';
+}else{bindAll();bootstrap();}

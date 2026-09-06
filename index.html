@@ -765,6 +765,27 @@
   </style>
 </head>
 <body>
+  <div id="cloudLogin" style="position:fixed;inset:0;z-index:100001;background:#091525;display:grid;place-items:center;padding:20px;color:#eef3fa">
+    <form id="cloudLoginForm" style="width:min(100%,380px);display:grid;gap:16px;background:#14243a;padding:28px;border:1px solid #405573;border-radius:18px">
+      <h1 style="font-size:24px;margin:0">Gestão de Abastecimentos</h1>
+      <p style="margin:0">Guarda Municipal de Ipatinga</p>
+      <label>E-mail<input name="email" type="email" autocomplete="username" required style="display:block;width:100%;padding:12px;margin-top:6px;box-sizing:border-box"></label>
+      <label>Senha<input name="password" type="password" autocomplete="current-password" required style="display:block;width:100%;padding:12px;margin-top:6px;box-sizing:border-box"></label>
+      <button type="submit" style="padding:13px;background:#efc66f;color:#122033;border:0;border-radius:8px;font-weight:bold">Entrar</button>
+      <p id="cloudLoginMessage" role="status" style="margin:0">Use o acesso cadastrado pela administração.</p>
+    </form>
+  </div>
+  <div id="cloudBar" hidden style="position:fixed;bottom:8px;left:8px;z-index:9000;max-width:90vw;font-size:12px">
+    <span id="cloudStatus" role="status" style="padding:8px;color:white;border-radius:5px">Conectando…</span>
+    <button id="cloudSignOut" type="button">Sair</button>
+  </div>
+  <div id="cloudFailure" hidden style="position:fixed;inset:0;z-index:100002;background:#111e2bf5;color:white;padding:10vh 8vw">
+    <h2>Não foi possível confirmar o salvamento</h2>
+    <p id="cloudFailureText"></p>
+    <p>As alterações desta tela ainda não estão confirmadas no banco. Você pode baixar uma cópia dos cadastros antes de recarregar. Os comprovantes já enviados permanecem no Supabase.</p>
+    <button type="button" onclick="const u=URL.createObjectURL(new Blob([JSON.stringify(state)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='cadastros-nao-confirmados.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)">Baixar cadastros desta tela</button>
+    <button type="button" onclick="location.reload()">Recarregar dados do banco</button>
+  </div>
   <!-- Modal de gráficos -->
   <div id="modalGraficos">
     <div class="modal-box" style="max-width:1160px">
@@ -1576,6 +1597,9 @@
   </div>
 
   <script src="./db.js"></script>
+  <script>window.FROTA_CLOUD=true;</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js"></script>
+  <script src="./cloud.js"></script>
   <script src="./app.js"></script>
 
   <script>
